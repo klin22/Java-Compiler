@@ -139,41 +139,37 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Statement.Switch ast) {
-        Environment.PlcObject value = visit(ast.getCondition());
-        Scope childScope = new Scope(scope);
-        scope = childScope;
-
-        boolean matchFound = false;
-        Ast.Statement.Case defaultCase = null;
-
-        for (Ast.Statement.Case caseStatement : ast.getCases()) {
-            if (caseStatement.getValue().isPresent()) {
-                Environment.PlcObject caseValue = visit(caseStatement.getValue().get());
-
-                if (value.equals(caseValue)) {
-                    visit(caseStatement);
-                    matchFound = true;
+        Environment.PlcObject conditionValue = visit(ast.getCondition());
+        boolean hasMatchedCase = false;
+        for (Ast.Statement.Case eachCase : ast.getCases()) {
+            if (eachCase.getValue().isPresent()) {
+                Environment.PlcObject caseValue = visit(eachCase.getValue().get());
+                if (Objects.equals(conditionValue.getValue(), caseValue.getValue())) {
+                    hasMatchedCase = true;
+                    runCaseStatements(eachCase);
                     break;
                 }
-            } else {
-                defaultCase = caseStatement;
             }
         }
-
-        if (!matchFound && defaultCase != null) {
-            visit(defaultCase);
+        if (!hasMatchedCase) {
+            Optional<Ast.Statement.Case> defaultCase = ast.getCases().stream()
+                    .filter(caseNode -> !caseNode.getValue().isPresent())
+                    .findFirst();
+            defaultCase.ifPresent(this::runCaseStatements);
         }
 
-        scope = childScope.getParent();
         return Environment.NIL;
+    }
+
+    private void runCaseStatements(Ast.Statement.Case caseNode) {
+        for (Ast.Statement statement : caseNode.getStatements()) {
+            visit(statement);
+        }
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Statement.Case ast) {
-        for (Ast.Statement statement : ast.getStatements()) {
-            visit(statement);
-        }
-        return Environment.NIL;
+        return Environment.create(ast);
     }
 
     @Override
@@ -312,11 +308,11 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
             } else {
                 throw new RuntimeException("Expected type java.math.BigInteger, received " + offsetObject.getValue().getClass().getName() + ".");
             }
-            List<Environment.PlcObject> list = requireType(List.class, value);
+            List<BigInteger> list = requireType(List.class, value);
             if (offsetValue.compareTo(BigInteger.ZERO) < 0 || offsetValue.compareTo(BigInteger.valueOf(list.size())) >= 0) {
                 throw new RuntimeException("Index out of bounds: " + offsetValue);
             }
-            return list.get(offsetValue.intValue());
+            return Environment.create(list.get(offsetValue.intValue()));
         } else {
             // If there's no offset, this is a variable access
             return value;
