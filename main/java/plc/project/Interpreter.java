@@ -106,11 +106,11 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
         if (access.getOffset().isPresent()) {
             Environment.PlcObject offset = visit(access.getOffset().get());
             BigInteger offsetValue = requireType(BigInteger.class, offset);
-            List<Environment.PlcObject> list = requireType(List.class, variable.getValue());
+            List<Object> list = requireType(List.class, variable.getValue());
             if (offsetValue.compareTo(BigInteger.ZERO) < 0 || offsetValue.compareTo(BigInteger.valueOf(list.size())) >= 0) {
                 throw new RuntimeException("Index out of bounds: " + offsetValue);
             }
-            list.set(offsetValue.intValue(), value);
+            list.set(offsetValue.intValue(), value.getValue());
         } else {
             variable.setValue(value);
         }
