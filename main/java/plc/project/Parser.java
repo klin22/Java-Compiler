@@ -67,6 +67,10 @@ public final class Parser {
     public Ast.Global parseList() throws ParseException {
         String identifier = tokens.get(0).getLiteral();
         match(Token.Type.IDENTIFIER);
+        match(":");
+        match(":");
+        String typeName = tokens.get(0).getLiteral();
+        match(Token.Type.IDENTIFIER);
         match("=");
         match("[");
         List<Ast.Expression> expressions = new ArrayList<>();
@@ -80,7 +84,7 @@ public final class Parser {
         if (!match(";")) {
             throw new ParseException("Expected ';', got " + tokens.get(0), tokens.index);
         }
-        return new Ast.Global(identifier, true, Optional.of(new Ast.Expression.PlcList(expressions)));
+        return new Ast.Global(identifier, typeName, true, Optional.of(new Ast.Expression.PlcList(expressions)));
     }
 
     /**
@@ -93,7 +97,9 @@ public final class Parser {
         }
         String name = tokens.get(0).getLiteral();
         tokens.advance();
-
+        match(":");
+        String typeName = tokens.get(0).getLiteral();
+        match(Token.Type.IDENTIFIER);
         // Parse optional '=' and expression
         Ast.Expression value = null;
         if (match("=")) {
@@ -103,7 +109,7 @@ public final class Parser {
             throw new ParseException("Expected ';', got " + tokens.get(0), tokens.index);
         }
         // Create and return the Ast.Global object
-        return new Ast.Global(name, true, Optional.ofNullable(value));
+        return new Ast.Global(name, typeName, true, Optional.ofNullable(value));
     }
 
     /**
@@ -116,7 +122,9 @@ public final class Parser {
         }
         String name = tokens.get(0).getLiteral();
         tokens.advance();
-
+        match(":");
+        String typeName = tokens.get(0).getLiteral();
+        match(Token.Type.IDENTIFIER);
         // Parse '='
         if (!match("=")) {
             throw new ParseException("Expected '=' after identifier", tokens.index);
@@ -128,7 +136,7 @@ public final class Parser {
             throw new ParseException("Expected ';', got " + tokens.get(0), tokens.index);
         }
         // Create and return the Ast.Global object
-        return new Ast.Global(name, false, Optional.of(value));
+        return new Ast.Global(name, typeName, false, Optional.of(value));
     }
 
     /**
@@ -141,21 +149,32 @@ public final class Parser {
         match(Token.Type.IDENTIFIER);
         match("(");
         List<String> parameters = new ArrayList<>();
+        List<String> parameterTypeNames = new ArrayList<>();
         while (!peek(")")) {
             parameters.add(tokens.get(0).getLiteral());
+            match(Token.Type.IDENTIFIER);
+            match(":");
+            String typeName = tokens.get(0).getLiteral();
+            parameterTypeNames.add(typeName);
             match(Token.Type.IDENTIFIER);
             if (peek(",")) {
                 match(",");
             }
         }
         match(")");
+        Optional<String> returnTypeName = Optional.of("Any");
+        if (peek(":")) {
+            match(":");
+            returnTypeName = Optional.of(tokens.get(0).getLiteral());
+            match(Token.Type.IDENTIFIER);
+        }
         match("DO");
         List<Ast.Statement> statements = new ArrayList<>();
         while (!peek("END")) {
             statements.add(parseStatement());
         }
         match("END");
-        return new Ast.Function(name, parameters, statements);
+        return new Ast.Function(name, parameters, parameterTypeNames, returnTypeName, statements);
     }
 
     /**
@@ -222,11 +241,20 @@ public final class Parser {
         }
         String identifier = tokens.get(0).getLiteral();
         tokens.advance();
+        Optional<String> typeName = Optional.of("Any");
+        if(peek(":")){
+            match(":");
+            typeName = Optional.of(tokens.get(0).getLiteral());
+            match(Token.Type.IDENTIFIER);
+        }
         Ast.Expression expression = null;
         if(match("=")){
             expression = parseExpression();
         }
-        return new Ast.Statement.Declaration(identifier, Optional.ofNullable(expression));
+        if (!match(";")) {
+            throw new ParseException("Expected ';', got " + tokens.get(0), tokens.index);
+        }
+        return new Ast.Statement.Declaration(identifier, typeName, Optional.ofNullable(expression));
 
     }
 
