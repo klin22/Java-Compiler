@@ -234,14 +234,13 @@ public final class Parser {
      * method should only be called if the next tokens start a declaration
      * statement, aka {@code LET}.
      */
-    public Ast.Statement.Declaration parseDeclarationStatement() throws
-            ParseException {
+    public Ast.Statement.Declaration parseDeclarationStatement() throws ParseException {
         if(!tokens.has(0) || !(tokens.get(0).getType() == Token.Type.IDENTIFIER)){
             throw new ParseException("Expected Identifier after LET ", tokens.index);
         }
         String identifier = tokens.get(0).getLiteral();
         tokens.advance();
-        Optional<String> typeName = Optional.of("Any");
+        Optional<String> typeName = Optional.empty();
         if(peek(":")){
             match(":");
             typeName = Optional.of(tokens.get(0).getLiteral());
